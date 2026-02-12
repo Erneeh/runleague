@@ -1,3 +1,4 @@
+import { unstable_noStore } from "next/cache";
 import { Leaderboard } from "@/components/leaderboard";
 import { getCurrentUser } from "@/lib/auth";
 import { ensureProfileExists } from "@/lib/profile";
@@ -8,6 +9,7 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
+  unstable_noStore();
   const user = await getCurrentUser();
   const params = await searchParams;
 

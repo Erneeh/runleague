@@ -82,10 +82,17 @@ export async function GET(req: NextRequest) {
         .maybeSingle();
 
       if (!existingProfile?.avatar_url) {
-        await supabase.from("profiles").upsert({
-          id: user.id,
-          avatar_url: stravaAvatar,
-        });
+        if (existingProfile) {
+          await supabase
+            .from("profiles")
+            .update({ avatar_url: stravaAvatar })
+            .eq("id", user.id);
+        } else {
+          await supabase.from("profiles").upsert({
+            id: user.id,
+            avatar_url: stravaAvatar,
+          });
+        }
       }
     }
 

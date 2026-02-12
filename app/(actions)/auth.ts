@@ -18,12 +18,33 @@ export async function createProfileAfterSignUp(nickname: string | null) {
   if (!user) return { error: "Not authenticated" };
 
   const supabase = getSupabaseServerClient();
-  const { error } = await supabase.from("profiles").upsert({
-    id: user.id,
-    nickname: nickname?.trim() || null,
-  });
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("nickname")
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if (error) return { error: error.message };
+  const newNickname = nickname?.trim() || null;
+  if (existing) {
+    if (existing.nickname != null && existing.nickname !== "") {
+      revalidatePath("/");
+      revalidatePath("/profile");
+      return {};
+    }
+    const { error } = await supabase
+      .from("profiles")
+      .update({ nickname: newNickname })
+      .eq("id", user.id)
+      .select("id")
+      .single();
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      nickname: newNickname,
+    });
+    if (error) return { error: error.message };
+  }
   revalidatePath("/");
   revalidatePath("/profile");
   return {};

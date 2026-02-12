@@ -53,6 +53,7 @@ export interface Database {
           first_name: string | null;
           last_name: string | null;
           phone: string | null;
+          country_code: string | null;
           created_at: string;
         };
         Insert: {
@@ -62,6 +63,7 @@ export interface Database {
           first_name?: string | null;
           last_name?: string | null;
           phone?: string | null;
+          country_code?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

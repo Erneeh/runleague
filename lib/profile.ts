@@ -39,30 +39,80 @@ export async function ensureProfileExists(
 
   const { data: existingProfile } = await supabase
     .from("profiles")
-    .select("nickname, first_name, last_name")
+    .select("nickname, first_name, last_name, avatar_url")
     .eq("id", userId)
     .maybeSingle();
 
   const metadata = userMetadata || {};
-  const givenName = metadata.given_name ?? existingProfile?.first_name ?? null;
-  const familyName = metadata.family_name ?? existingProfile?.last_name ?? null;
+  const avatarFromMeta =
+    typeof metadata.avatar_url === "string" && metadata.avatar_url.trim()
+      ? metadata.avatar_url.trim()
+      : null;
 
-  let nickname: string | null = existingProfile?.nickname ?? null;
-  if (metadata.nickname && typeof metadata.nickname === "string") {
-    nickname = metadata.nickname.trim();
-  } else if (userMetadata) {
-    const generated = generateNicknameFromGoogleUser({
-      user_metadata: userMetadata,
-      email: userEmail,
+  if (!existingProfile) {
+    const givenName = metadata.given_name ?? null;
+    const familyName = metadata.family_name ?? null;
+    let nickname: string | null = null;
+    if (metadata.nickname && typeof metadata.nickname === "string") {
+      nickname = metadata.nickname.trim();
+    } else if (userMetadata) {
+      const generated = generateNicknameFromGoogleUser({
+        user_metadata: userMetadata,
+        email: userEmail,
+      });
+      if (generated) nickname = generated;
+    }
+    if (!nickname && userEmail) nickname = userEmail.split("@")[0];
+
+    await supabase.from("profiles").upsert({
+      id: userId,
+      nickname: nickname || null,
+      first_name: givenName || null,
+      last_name: familyName || null,
+      avatar_url: avatarFromMeta || null,
     });
-    if (generated) nickname = generated;
+    return;
   }
-  if (!nickname && userEmail) nickname = userEmail.split("@")[0];
 
-  await supabase.from("profiles").upsert({
-    id: userId,
-    nickname: nickname || null,
-    first_name: givenName || null,
-    last_name: familyName || null,
-  });
+  const updates: {
+    nickname?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    avatar_url?: string | null;
+  } = {};
+  if (existingProfile.nickname == null || existingProfile.nickname === "") {
+    let nickname: string | null = null;
+    if (metadata.nickname && typeof metadata.nickname === "string") {
+      nickname = metadata.nickname.trim();
+    } else if (userMetadata) {
+      const generated = generateNicknameFromGoogleUser({
+        user_metadata: userMetadata,
+        email: userEmail,
+      });
+      if (generated) nickname = generated;
+    }
+    if (!nickname && userEmail) nickname = userEmail.split("@")[0];
+    if (nickname) updates.nickname = nickname;
+  }
+  if (existingProfile.first_name == null || existingProfile.first_name === "") {
+    const v = metadata.given_name ?? null;
+    if (v) updates.first_name = v;
+  }
+  if (existingProfile.last_name == null || existingProfile.last_name === "") {
+    const v = metadata.family_name ?? null;
+    if (v) updates.last_name = v;
+  }
+  if (
+    (existingProfile.avatar_url == null || existingProfile.avatar_url === "") &&
+    avatarFromMeta
+  ) {
+    updates.avatar_url = avatarFromMeta;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", userId);
+  }
 }

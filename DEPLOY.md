@@ -56,6 +56,23 @@ If you use Strava:
 
 Send your friends the Vercel URL (or your custom domain). They can sign up with email or Google there.
 
+## 6. (Optional) Add country to profiles
+
+To use the profile country and athlete search with flags, add the column in Supabase:
+
+1. **Supabase Dashboard** → **SQL Editor** → New query.
+2. Run: `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS country_code text;`
+
+## 7. Profile / nickname not saving after edit
+
+If changing your nickname (or other profile fields) appears to save on the page but **reverts after reload** or doesn’t show on the leaderboard, Supabase **Row Level Security (RLS)** is likely blocking the update.
+
+1. Open **Supabase Dashboard** → **SQL Editor** → New query.
+2. Copy and run the contents of **`supabase-rls-policies.sql`** in this repo (or the policies from the file that allow SELECT for authenticated users, INSERT/UPDATE for own row).
+3. If you already have policies on `profiles`, you may need to drop conflicting ones in **Table Editor** → **profiles** → **Policies** first, then run the script.
+
+After that, profile updates should persist and the leaderboard should show the new nickname.
+
 ---
 
 **Tip:** For more sign-ups without hitting “email rate limit exceeded”, either turn off **Confirm email** in Supabase (Auth → Providers → Email) for testing, or use **Sign in with Google** (no confirmation email).

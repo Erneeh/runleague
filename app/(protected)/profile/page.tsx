@@ -1,7 +1,9 @@
 import Image from "next/image";
+import { unstable_noStore } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStravaAuthorizeUrl } from "@/lib/strava";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { CountryFlag } from "@/components/country-flag";
 import { ProfilePersonalInfo } from "@/components/profile-personal-info";
 import { AddRunForm } from "@/components/add-run-form";
 
@@ -10,6 +12,7 @@ export default async function ProfilePage({
 }: {
   searchParams: Promise<{ strava?: string; msg?: string }>;
 }) {
+  unstable_noStore();
   const user = await getCurrentUser();
   const stravaUrl = getStravaAuthorizeUrl();
   const params = await searchParams;
@@ -19,7 +22,7 @@ export default async function ProfilePage({
   const [{ data: profile }, { data: connection }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("nickname, avatar_url, first_name, last_name, phone")
+      .select("nickname, avatar_url, first_name, last_name, phone, country_code")
       .eq("id", user?.id || "")
       .maybeSingle(),
     supabase
@@ -49,6 +52,7 @@ export default async function ProfilePage({
   const phone = profile?.phone ?? null;
   const email = user?.email ?? null;
   const nickname = profile?.nickname ?? null;
+  const countryCode = profile?.country_code ?? null;
 
   return (
     <div className="mx-auto mt-6 max-w-md space-y-4">
@@ -68,7 +72,10 @@ export default async function ProfilePage({
           </div>
         )}
         <div>
-          <h1 className="text-lg font-bold text-slate-900">{displayName}</h1>
+          <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            {displayName}
+            {countryCode && <CountryFlag code={countryCode} size="md" />}
+          </h1>
           <p className="text-sm text-slate-500">
             Signed in as{" "}
             <span className="font-medium text-slate-700">
@@ -85,6 +92,7 @@ export default async function ProfilePage({
         lastName={lastName}
         phone={phone}
         nickname={nickname}
+        countryCode={countryCode}
       />
 
       {/* Log a run */}

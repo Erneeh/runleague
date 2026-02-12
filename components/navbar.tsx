@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { SearchAthletes } from "@/components/search-athletes";
 
 type SimpleUser = {
   email: string | null;
@@ -30,23 +31,30 @@ export function Navbar() {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
+    const setUserFromAuth = async (authUser: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
+      if (!authUser) {
+        setUser(null);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      setUser({
+        email: authUser.email ?? null,
+        avatarUrl:
+          profile?.avatar_url ??
+          (authUser.user_metadata as { avatar_url?: string } | undefined)?.avatar_url ??
+          null,
+      });
+    };
+
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
-        const { user } = data;
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("avatar_url")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        setUser({
-          email: user.email ?? null,
-          avatarUrl:
-            profile?.avatar_url ??
-            (user.user_metadata as any)?.avatar_url ??
-            null,
-        });
+        await setUserFromAuth(data.user);
       } else {
         setUser(null);
       }
@@ -59,11 +67,7 @@ export function Navbar() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        const u = session.user;
-        setUser({
-          email: u.email ?? null,
-          avatarUrl: (u.user_metadata as any)?.avatar_url ?? null,
-        });
+        setUserFromAuth(session.user);
       } else {
         setUser(null);
       }
@@ -82,8 +86,8 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-blue-100 bg-white/90 backdrop-blur-lg">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+    <header className="sticky top-0 h-[100px] z-50 border-b border-blue-100 bg-white/90 backdrop-blur-lg">
+      <div className="mx-auto flex max-w-6xl items-center h-full justify-between gap-4 px-4 py-3">
         {/* Left: Logo + Nav */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5">
@@ -92,11 +96,11 @@ export function Navbar() {
               alt="RunLeague"
               width={40}
               height={40}
-              className="h-10 w-10 object-contain"
+              className="h-20 w-20 object-contain"
             />
-            <span className="text-lg font-bold text-slate-900">
+            {/* <span className="text-lg font-bold text-slate-900">
               Run<span className="text-blue-600">League</span>
-            </span>
+            </span> */}
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">
@@ -108,7 +112,7 @@ export function Navbar() {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-all ${
+                  className={`rounded-lg px-3.5 py-2 text-lg font-medium transition-all ${
                     isActive
                       ? "bg-blue-50 text-blue-700"
                       : "text-slate-500 hover:bg-blue-50 hover:text-blue-700"
@@ -122,16 +126,8 @@ export function Navbar() {
         </div>
 
         {/* Center: Search */}
-        <div className="hidden flex-1 items-center justify-center px-4 md:flex">
-          <div className="flex w-full max-w-sm items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/50 px-3 py-2 text-sm text-slate-400 transition-colors focus-within:border-blue-400 focus-within:bg-white">
-            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span>Search runners...</span>
-            <kbd className="ml-auto rounded border border-blue-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-400">
-              Ctrl K
-            </kbd>
-          </div>
+        <div className="hidden flex-1 items-center justify-center px-4 md:flex h-full">
+          <SearchAthletes />
         </div>
 
         {/* Right: Auth */}
@@ -140,13 +136,6 @@ export function Navbar() {
             <div className="h-9 w-20 animate-pulse rounded-lg bg-slate-100" />
           ) : user ? (
             <>
-              <Link
-                href="/profile"
-                className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
-              >
-                Profile
-              </Link>
-
               <button
                 type="button"
                 className="relative rounded-lg p-2 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
@@ -163,9 +152,9 @@ export function Navbar() {
                   <Image
                     src={user.avatarUrl}
                     alt="Avatar"
-                    width={36}
-                    height={36}
-                    className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-200"
+                    width={30}
+                    height={30}
+                    className="h-10 w-10 rounded-full object-cover ring-2 ring-blue-200 hover:ring-blue-400 transition-colors"
                   />
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
@@ -177,7 +166,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="rounded-lg px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                className="rounded-lg px-3 py-2 text-md font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
               >
                 Sign out
               </button>
@@ -186,13 +175,13 @@ export function Navbar() {
             <>
               <Link
                 href="/login"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                className="rounded-lg px-4 py-2 text-md font-bold transition-colors text-slate-500 hover:bg-blue-50 hover:text-blue-700"
               >
                 Log in
               </Link>
               <Link
                 href="/login?mode=signup"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-blue-200 transition-all hover:bg-blue-700 hover:shadow-md hover:shadow-blue-200"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-md font-medium text-white shadow-sm shadow-blue-200 transition-all hover:bg-blue-700 hover:shadow-md hover:shadow-blue-200"
               >
                 Join now
               </Link>
