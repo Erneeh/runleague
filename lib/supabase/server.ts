@@ -19,17 +19,26 @@ export function getSupabaseServerClient() {
         return cookieStore.get(name)?.value;
       },
       async set(name, value, options) {
-        const cookieStore = await cookies();
-        cookieStore.set({ name, value, ...options });
+        try {
+          const cookieStore = await cookies();
+          cookieStore.set({ name, value, ...options });
+        } catch {
+          // Cookies can only be set in Server Actions or Route Handlers.
+          // Ignore when Supabase tries to refresh the session during Server Component render.
+        }
       },
       async remove(name, options) {
-        const cookieStore = await cookies();
-        cookieStore.set({
-          name,
-          value: "",
-          ...options,
-          maxAge: 0,
-        });
+        try {
+          const cookieStore = await cookies();
+          cookieStore.set({
+            name,
+            value: "",
+            ...options,
+            maxAge: 0,
+          });
+        } catch {
+          // Same as set: ignore when we're in a Server Component.
+        }
       },
     },
   });
